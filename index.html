@@ -27,8 +27,8 @@
         <button type="button" class="btn btn-secondary" id="btn-copy-md" title="Salin format Markdown struk">
           📋 Salin Markdown
         </button>
-        <button type="button" class="btn btn-primary" id="btn-print" title="Cetak struk langsung 1-klik tanpa dialog">
-          ⚡ Cetak Struk (1-Klik)
+        <button type="button" class="btn btn-primary" id="btn-print" title="Cetak struk ke printer">
+          🖨️ Cetak Struk
         </button>
       </div>
     </header>
@@ -242,33 +242,49 @@ pastikan tidak ada yang salah. Kesalahan file setelah transaksi bukan menjadi ta
             </div>
           </div>
 
-          <!-- Panel Kontrol Printer Thermal (1-Klik Murni Web USB/Serial & Bridge) -->
+          <!-- Panel Kontrol Printer & Pilihan Device -->
           <div class="direct-print-card" id="direct-print-card">
             <div class="direct-print-header">
               <div class="direct-print-status">
-                <span class="status-indicator offline" id="print-status-dot"></span>
-                <span id="print-status-text">Printer USB belum tersambung</span>
+                <span class="status-indicator online" id="print-status-dot"></span>
+                <span id="print-status-text">Siap Cetak (Dialog Windows)</span>
               </div>
-              <span class="direct-print-badge" id="print-mode-badge">WEB USB / SERIAL</span>
+              <span class="direct-print-badge" id="print-mode-badge">DIALOG SISTEM</span>
             </div>
             <div class="direct-print-body">
-              <!-- Tampilan saat belum connect USB -->
-              <div id="printer-connect-prompt">
-                <button type="button" class="btn btn-block btn-connect-usb" id="btn-connect-usb">
-                  🔌 Sambungkan Printer Thermal USB
-                </button>
+              <div class="print-field-row">
+                <label for="printer-mode-select">Metode / Device Printer:</label>
+                <select id="printer-mode-select" class="printer-dropdown">
+                  <option value="system" selected>🖨️ Dialog Windows / Komputer</option>
+                  <option value="serial">🔌 Direct Web Serial (COM)</option>
+                  <option value="usb">⚡ Direct WebUSB Direct</option>
+                  <option value="bluetooth">📶 Direct Web Bluetooth</option>
+                </select>
               </div>
 
-              <!-- Tampilan saat sudah connect USB -->
-              <div id="printer-connected-info" style="display: none;">
-                <div class="print-field-row">
-                  <span class="device-name-badge" id="connected-device-name">Printer USB Terhubung</span>
-                  <button type="button" class="btn-calib btn-disconnect" id="btn-disconnect-usb" title="Putuskan sambungan printer">Putuskan</button>
+              <!-- Petunjuk untuk Mode Dialog Sistem -->
+              <div id="printer-system-hint" class="printer-mode-hint">
+                <p>💡 <strong>Metode Utama:</strong> Mendukung semua printer yang terpasang di komputer Anda (POS-58, POS-80, Epson, Bluetooth, PDF, dll.). Anda bebas memilih printer fisik tujuan di jendela dialog cetak.</p>
+              </div>
+
+              <!-- Kontrol untuk Mode Direct Hardware (Serial, USB, Bluetooth) -->
+              <div id="printer-direct-controls" style="display: none;">
+                <div id="printer-connect-prompt">
+                  <button type="button" class="btn btn-block btn-connect-usb" id="btn-connect-device">
+                    🔌 Sambungkan Perangkat Printer
+                  </button>
+                </div>
+
+                <div id="printer-connected-info" style="display: none;">
+                  <div class="print-device-connected-row">
+                    <span class="device-name-badge" id="connected-device-name">Perangkat Terhubung</span>
+                    <button type="button" class="btn-calib btn-disconnect" id="btn-disconnect-device" title="Putuskan sambungan printer">Putuskan</button>
+                  </div>
                 </div>
               </div>
 
               <div class="print-options-row">
-                <label class="checkbox-inline">
+                <label class="checkbox-inline" id="label-auto-cut">
                   <input type="checkbox" id="check-auto-cut" checked> Potong Kertas Otomatis
                 </label>
                 <button type="button" class="btn-test-print" id="btn-test-print" title="Kirim tes cetak ke printer">⚡ Tes Cetak</button>
@@ -301,20 +317,20 @@ pastikan tidak ada yang salah. Kesalahan file setelah transaksi bukan menjadi ta
 
           <div class="preview-actions">
             <button type="button" class="btn btn-primary btn-block btn-lg" id="btn-print-2">
-              ⚡ Cetak ke Printer Thermal (1-Klik)
+              🖨️ Cetak Struk Sekarang
             </button>
-            <button type="button" class="btn btn-outline btn-block" id="btn-browser-print" style="margin-top: 6px; font-size: 12.5px; padding: 8px;" title="Cetak manual lewat jendela dialog browser jika diperlukan">
-              🖨️ Cetak via Dialog Browser Biasa (Ctrl+P)
+            <button type="button" class="btn btn-outline btn-block" id="btn-browser-print" style="margin-top: 6px; font-size: 12.5px; padding: 8px;" title="Cetak manual lewat jendela dialog browser Windows">
+              🖨️ Buka Dialog Cetak Browser (Ctrl+P)
             </button>
             
             <div class="print-guide-card" id="print-guide-box">
               <div class="print-guide-title">
-                <span id="print-guide-title-text">💡 Cara 1-Klik Cetak Murni (Tanpa Script .bat):</span>
+                <span id="print-guide-title-text">💡 Petunjuk Pemilihan Device & Cetak Struk:</span>
               </div>
               <ul class="print-guide-list" id="print-guide-list">
-                <li><strong>1. Sambungkan Printer:</strong> Klik tombol biru <em>🔌 Sambungkan Printer Thermal USB</em> di atas.</li>
-                <li><strong>2. Pilih Printer Anda:</strong> Di jendela pop-up Chrome, pilih printer thermal kasir Anda lalu klik Hubungkan.</li>
-                <li><strong>3. Selesai:</strong> Browser mengingatnya selamanya. Saat klik tombol cetak, struk langsung keluar seketika!</li>
+                <li><strong>Pilih Printer Anda:</strong> Di jendela dialog cetak, pada menu <em>Destination / Tujuan</em>, pilih printer kasir Anda (misal POS-58, POS-80, atau Microsoft Print to PDF).</li>
+                <li><strong>Atur Margin:</strong> Pilih <em>Margins: None</em> agar pas di kertas thermal tanpa terpotong.</li>
+                <li><strong>Browser Mengingat Printer:</strong> Setelah dipilih sekali, Chrome/Edge akan otomatis menjadikannya printer default untuk transaksi berikutnya.</li>
               </ul>
             </div>
           </div>

@@ -385,9 +385,16 @@ body {
 }
 
 /* Preview Panel */
+.preview-panel {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .preview-sticky {
   position: sticky;
   top: 20px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .preview-toolbar {
@@ -458,7 +465,7 @@ body {
   transform: rotate(180deg);
 }
 
-/* Card Kontrol Direct Print 1-Klik */
+/* Card Kontrol Direct Print */
 .direct-print-card {
   background: #0f172a;
   border-radius: var(--radius-md);
@@ -466,6 +473,9 @@ body {
   margin-bottom: 14px;
   color: #f8fafc;
   border: 1px solid #334155;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .direct-print-header {
@@ -521,30 +531,59 @@ body {
 
 .print-field-row {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .print-field-row label {
   font-size: 12px;
+  font-weight: 600;
   color: #94a3b8;
-  white-space: nowrap;
 }
 
 .printer-dropdown {
-  flex: 1;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   background: #1e293b;
   color: #f8fafc;
   border: 1px solid #475569;
   border-radius: var(--radius-sm);
-  padding: 6px 10px;
+  padding: 8px 10px;
   font-size: 12.5px;
   font-weight: 600;
   outline: none;
+  cursor: pointer;
 }
 
 .printer-dropdown:focus {
   border-color: #38bdf8;
+}
+
+.print-device-connected-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.printer-mode-hint {
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px dashed rgba(56, 189, 248, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 11.5px;
+  color: #bae6fd;
+  line-height: 1.45;
+}
+.printer-mode-hint p {
+  margin: 0;
 }
 
 .print-options-row {
@@ -771,7 +810,7 @@ body {
 @media print {
   @page {
     size: auto;
-    margin: 5mm !important; /* Margin print 5mm */
+    margin: 0 !important; /* Margin 0 agar pas untuk kertas roll thermal */
   }
 
   html, body {

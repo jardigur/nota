@@ -45,7 +45,8 @@ let state = {
   printFontSize: 7, // Ukuran font cetak default 7pt (standar 58mm)
   selectedPrinter: 'CUTTER',
   autoCut: true,
-  directPrintAvailable: false
+  directPrintAvailable: false,
+  printMode: 'system' // 'system' | 'serial' | 'usb' | 'bluetooth'
 };
 
 // Format Angka ke Ribuan dengan koma (contoh: 4,700)
@@ -302,21 +303,34 @@ function bindInputEvents() {
 }
 
 // ====================================================================
-// WEB SERIAL & WEB USB ENGINE (1-KLIK MURNI BROWSER / ZERO SCRIPT .BAT)
+// PRINTER ENGINE (DIALOG SISTEM WINDOWS, WEB SERIAL, WEB USB, BLUETOOTH)
 // ====================================================================
 
 let activeSerialPort = null;
 let activeUsbDevice = null;
 let activeUsbEndpoint = null;
-let activeDeviceType = null; // 'serial' | 'usb' | 'bridge' | null
+let activeBtDevice = null;
+let activeBtCharacteristic = null;
+let activeDeviceType = null; // 'serial' | 'usb' | 'bluetooth' | 'bridge' | null
 
-// Inisialisasi sistem printer WebUSB / Web Serial & Bridge
+// Inisialisasi sistem printer multi-mode
 function initPrinterSystem() {
-  const btnConnect = document.getElementById('btn-connect-usb');
-  const btnDisconnect = document.getElementById('btn-disconnect-usb');
+  const modeSelect = document.getElementById('printer-mode-select');
+  const btnConnect = document.getElementById('btn-connect-device');
+  const btnDisconnect = document.getElementById('btn-disconnect-device');
   const btnTestPrint = document.getElementById('btn-test-print');
   const btnBrowserPrint = document.getElementById('btn-browser-print');
   const checkAutoCut = document.getElementById('check-auto-cut');
+
+  if (modeSelect) {
+    modeSelect.value = state.printMode || 'system';
+    modeSelect.addEventListener('change', (e) => {
+      state.printMode = e.target.value;
+      saveToStorage();
+      updatePrinterUI();
+      showToast(`Opsi printer: ${getModeLabel(state.printMode)}`);
+    });
+  }
 
   if (checkAutoCut) {
     checkAutoCut.checked = state.autoCut !== false;
@@ -328,7 +342,7 @@ function initPrinterSystem() {
 
   if (btnConnect) {
     btnConnect.addEventListener('click', async () => {
-      await requestUserConnectPrinter();
+      await requestUserConnectDevice();
     });
   }
 
@@ -353,63 +367,152 @@ function initPrinterSystem() {
   // Coba reconnect otomatis jika sebelumnya pernah diizinkan
   tryAutoReconnectPrinter();
 
-  // Dengarkan event disconnect printer (misal kabel USB dicabut)
+  // Dengarkan event disconnect printer fisik
   if ('serial' in navigator) {
     navigator.serial.addEventListener('disconnect', () => {
       activeSerialPort = null;
-      activeDeviceType = null;
+      if (activeDeviceType === 'serial') activeDeviceType = null;
       updatePrinterUI();
-      showToast('⚠️ Kabel printer USB terputus.');
+      showToast('⚠️ Kabel printer Serial terputus.');
     });
   }
   if ('usb' in navigator) {
     navigator.usb.addEventListener('disconnect', () => {
       activeUsbDevice = null;
-      activeDeviceType = null;
+      activeUsbEndpoint = null;
+      if (activeDeviceType === 'usb') activeDeviceType = null;
       updatePrinterUI();
       showToast('⚠️ Kabel printer USB terputus.');
     });
   }
+
+  updatePrinterUI();
 }
 
-// Dialog menghubungkan printer baru
-async function requestUserConnectPrinter() {
-  // 1. Coba Web Serial terlebih dahulu (metode paling umum & andal untuk printer thermal USB di Windows)
-  if ('serial' in navigator) {
-    try {
-      const port = await navigator.serial.requestPort();
-      await openSerialPort(port);
-      showToast('✅ Printer Thermal USB berhasil tersambung via Web Serial!');
-      updatePrinterUI();
-      return;
-    } catch (err) {
-      if (err.name === 'NotFoundError') {
-        // User membatalkan dialog
-        return;
-      }
-      console.warn('Web Serial error, mencoba WebUSB...', err);
-    }
+// Label ringkas per mode
+function getModeLabel(mode) {
+  switch (mode) {
+    case 'system': return 'Dialog Printer Windows (Semua Printer)';
+    case 'serial': return 'Direct Web Serial (Port COM)';
+    case 'usb': return 'Direct WebUSB';
+    case 'bluetooth': return 'Direct Web Bluetooth';
+    default: return mode;
   }
+}
 
-  // 2. Jika Web Serial tidak dipilih/gagal, coba WebUSB langsung
-  if ('usb' in navigator) {
-    try {
-      const device = await navigator.usb.requestDevice({ filters: [] });
-      await openUsbDevice(device);
-      showToast('✅ Printer Thermal USB berhasil tersambung via WebUSB!');
-      updatePrinterUI();
-      return;
-    } catch (err) {
-      if (err.name === 'NotFoundError') return;
-      console.error('WebUSB error:', err);
-      showToast('Gagal menyambungkan: ' + err.message);
-    }
+// Router tombol sambungkan perangkat
+async function requestUserConnectDevice() {
+  if (state.printMode === 'serial') {
+    await requestConnectSerial();
+  } else if (state.printMode === 'usb') {
+    await requestConnectUsb();
+  } else if (state.printMode === 'bluetooth') {
+    await requestConnectBluetooth();
   } else {
-    alert('Browser Anda tidak mendukung Web Serial atau WebUSB API. Mohon gunakan Google Chrome atau Microsoft Edge terbaru.');
+    showToast('Mode Dialog Sistem langsung siap digunakan tanpa pairing.');
   }
 }
 
-// Buka Serial Port (Baud rate thermal 9600 / 115200)
+// Hubungkan Web Serial (COM Port)
+async function requestConnectSerial() {
+  if (!('serial' in navigator)) {
+    alert('Browser Anda belum mendukung Web Serial API. Mohon gunakan Google Chrome atau Microsoft Edge terbaru.');
+    return;
+  }
+  try {
+    const port = await navigator.serial.requestPort();
+    await openSerialPort(port);
+    showToast('✅ Printer Thermal berhasil tersambung via Web Serial (Port COM)!');
+    updatePrinterUI();
+  } catch (err) {
+    if (err.name === 'NotFoundError') return; // User membatalkan prompt
+    console.error('Web Serial error:', err);
+    showToast('Gagal menyambungkan Serial: ' + err.message);
+  }
+}
+
+// Hubungkan WebUSB Direct
+async function requestConnectUsb() {
+  if (!('usb' in navigator)) {
+    alert('Browser Anda belum mendukung WebUSB API. Mohon gunakan Google Chrome atau Microsoft Edge terbaru.');
+    return;
+  }
+  try {
+    const device = await navigator.usb.requestDevice({ filters: [] });
+    await openUsbDevice(device);
+    showToast('✅ Printer Thermal berhasil tersambung via WebUSB Direct!');
+    updatePrinterUI();
+  } catch (err) {
+    if (err.name === 'NotFoundError') return;
+    console.error('WebUSB error:', err);
+    showToast('Gagal menyambungkan USB: ' + err.message);
+  }
+}
+
+// Hubungkan Web Bluetooth (Printer Kasir Portable)
+async function requestConnectBluetooth() {
+  if (!('bluetooth' in navigator)) {
+    alert('Browser Anda belum mendukung Web Bluetooth API. Mohon gunakan Google Chrome atau Microsoft Edge terbaru pada komputer yang memiliki Bluetooth.');
+    return;
+  }
+  try {
+    showToast('Mencari printer thermal Bluetooth...');
+    const device = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: [
+        '000018f0-0000-1000-8000-00805f9b34fb', // ESC/POS standard
+        'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+        '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+        '0000ff00-0000-1000-8000-00805f9b34fb',
+        '0000ae00-0000-1000-8000-00805f9b34fb',
+        '0000af30-0000-1000-8000-00805f9b34fb'
+      ]
+    });
+
+    showToast(`Menghubungkan ke ${device.name || 'Printer Bluetooth'}...`);
+    const server = await device.gatt.connect();
+
+    // Cari characteristic yang mendukung penulisan (write / writeWithoutResponse)
+    let foundChar = null;
+    const services = await server.getPrimaryServices();
+    for (const service of services) {
+      const characteristics = await service.getCharacteristics();
+      for (const char of characteristics) {
+        if (char.properties.write || char.properties.writeWithoutResponse) {
+          foundChar = char;
+          break;
+        }
+      }
+      if (foundChar) break;
+    }
+
+    if (!foundChar) {
+      throw new Error('Tidak ditemukan kanal tulis (writable characteristic) pada perangkat Bluetooth ini.');
+    }
+
+    activeBtDevice = device;
+    activeBtCharacteristic = foundChar;
+    activeDeviceType = 'bluetooth';
+    localStorage.setItem('mangrove_printer_connected', 'bluetooth');
+
+    device.addEventListener('gattserverdisconnected', () => {
+      activeBtDevice = null;
+      activeBtCharacteristic = null;
+      if (activeDeviceType === 'bluetooth') activeDeviceType = null;
+      updatePrinterUI();
+      showToast('⚠️ Sambungan printer Bluetooth terputus.');
+    });
+
+    updatePrinterUI();
+    showToast(`✅ Berhasil terhubung ke ${device.name || 'Printer Bluetooth'}!`);
+  } catch (err) {
+    if (err.name === 'NotFoundError') return;
+    console.error('Bluetooth error:', err);
+    showToast('Gagal Bluetooth: ' + err.message);
+  }
+}
+
+// Buka Serial Port (Baud rate thermal standar 9600)
 async function openSerialPort(port) {
   try {
     if (!port.readable || !port.writable) {
@@ -456,7 +559,7 @@ async function openUsbDevice(device) {
   }
 }
 
-// Coba auto-reconnect tanpa memunculkan prompt
+// Coba auto-reconnect tanpa memunculkan prompt dialog
 async function tryAutoReconnectPrinter() {
   const savedType = localStorage.getItem('mangrove_printer_connected');
 
@@ -486,7 +589,7 @@ async function tryAutoReconnectPrinter() {
     }
   }
 
-  // Jika WebUSB/Serial belum connect, cek apakah bridge lokal (port 9123) sedang aktif
+  // Cek jika local bridge (port 9123) sedang aktif
   checkLocalBridgeSilent();
 }
 
@@ -509,7 +612,7 @@ async function checkLocalBridgeSilent() {
   updatePrinterUI();
 }
 
-// Putuskan sambungan printer
+// Putuskan sambungan printer perangkat direct
 async function disconnectPrinterDevice() {
   if (activeSerialPort) {
     try { await activeSerialPort.close(); } catch (e) {}
@@ -518,58 +621,147 @@ async function disconnectPrinterDevice() {
   if (activeUsbDevice) {
     try { await activeUsbDevice.close(); } catch (e) {}
     activeUsbDevice = null;
+    activeUsbEndpoint = null;
+  }
+  if (activeBtDevice && activeBtDevice.gatt.connected) {
+    try { activeBtDevice.gatt.disconnect(); } catch (e) {}
+    activeBtDevice = null;
+    activeBtCharacteristic = null;
   }
   activeDeviceType = null;
   localStorage.removeItem('mangrove_printer_connected');
   updatePrinterUI();
-  showToast('Sambungan printer telah diputuskan.');
+  showToast('Sambungan perangkat printer telah diputuskan.');
 }
 
-// Update tampilan UI printer
+// Update tampilan UI printer berdasarkan mode & status koneksi
 function updatePrinterUI() {
   const dot = document.getElementById('print-status-dot');
   const text = document.getElementById('print-status-text');
+  const badge = document.getElementById('print-mode-badge');
+  const modeSelect = document.getElementById('printer-mode-select');
+  const systemHint = document.getElementById('printer-system-hint');
+  const directControls = document.getElementById('printer-direct-controls');
   const promptView = document.getElementById('printer-connect-prompt');
   const infoView = document.getElementById('printer-connected-info');
+  const btnConnect = document.getElementById('btn-connect-device');
   const deviceName = document.getElementById('connected-device-name');
-  const badge = document.getElementById('print-mode-badge');
+  const labelAutoCut = document.getElementById('label-auto-cut');
   const guideTitle = document.getElementById('print-guide-title-text');
   const guideList = document.getElementById('print-guide-list');
 
-  if (activeDeviceType === 'serial' || activeDeviceType === 'usb') {
-    if (dot) dot.className = 'status-indicator online';
-    if (text) text.textContent = '1-Klik Siap (Printer USB)';
-    if (promptView) promptView.style.display = 'none';
-    if (infoView) infoView.style.display = 'block';
-    if (badge) badge.textContent = activeDeviceType === 'serial' ? 'WEB SERIAL' : 'WEB USB';
-    if (deviceName) deviceName.textContent = activeDeviceType === 'serial' ? '🟢 Printer USB (Serial)' : '🟢 Printer USB (Direct)';
+  const currentMode = state.printMode || 'system';
+  if (modeSelect && modeSelect.value !== currentMode) {
+    modeSelect.value = currentMode;
+  }
 
-    if (guideTitle) guideTitle.textContent = '⚡ 1-Klik Cetak Siap (Murni Browser):';
+  if (currentMode === 'system') {
+    // Mode Dialog Sistem Windows (Default & Paling Stabil)
+    if (dot) dot.className = 'status-indicator online';
+    if (text) text.textContent = 'Siap Cetak (Pilih di Dialog Cetak)';
+    if (badge) badge.textContent = 'DIALOG SISTEM';
+    if (systemHint) systemHint.style.display = 'block';
+    if (directControls) directControls.style.display = 'none';
+    if (labelAutoCut) labelAutoCut.style.display = 'none';
+
+    if (guideTitle) guideTitle.textContent = '💡 Petunjuk Pemilihan Device & Cetak Struk:';
     if (guideList) {
       guideList.innerHTML = `
-        <li><strong>Langsung Cetak:</strong> Begitu tombol cetak diklik, struk langsung keluar tanpa dialog print!</li>
-        <li><strong>Bebas Aplikasi Background:</strong> 100% jalan di Chrome/Edge, tidak perlu file .bat sama sekali.</li>
-        <li><strong>Auto Cutter:</strong> Kertas otomatis terpotong rapi setelah struk selesai dicetak.</li>
+        <li><strong>Pilih Printer Kasir Anda:</strong> Saat jendela cetak muncul, pada kolom <em>Destination / Tujuan</em>, pilih nama printer thermal Anda (misal POS-58, POS-80, Epson, atau Microsoft Print to PDF).</li>
+        <li><strong>Atur Margin:</strong> Pastikan opsi margin disetel ke <em>None / Tanpa Margin</em> agar cetakan pas di kertas thermal.</li>
+        <li><strong>Tersimpan Otomatis:</strong> Browser akan otomatis mengingat printer yang Anda pilih untuk transaksi-transaksi berikutnya.</li>
       `;
     }
-  } else if (activeDeviceType === 'bridge') {
-    if (dot) dot.className = 'status-indicator online';
-    if (text) text.textContent = `1-Klik Siap (${state.selectedPrinter || 'CUTTER'})`;
-    if (promptView) promptView.style.display = 'block';
-    if (infoView) infoView.style.display = 'none';
-    if (badge) badge.textContent = 'LOCAL BRIDGE';
-  } else {
-    if (dot) dot.className = 'status-indicator offline';
-    if (text) text.textContent = 'Printer USB belum tersambung';
-    if (promptView) promptView.style.display = 'block';
-    if (infoView) infoView.style.display = 'none';
-    if (badge) badge.textContent = 'BELUM KONEK';
-    if (guideTitle) guideTitle.textContent = '💡 Cara 1-Klik Cetak Murni (Tanpa Script .bat):';
+  } else if (currentMode === 'serial') {
+    // Mode Web Serial
+    if (systemHint) systemHint.style.display = 'none';
+    if (directControls) directControls.style.display = 'block';
+    if (labelAutoCut) labelAutoCut.style.display = 'flex';
+    if (btnConnect) btnConnect.innerHTML = '🔌 Pilih & Sambungkan Port COM / Serial';
+
+    const isConnected = activeSerialPort && activeSerialPort.readable;
+    if (isConnected) {
+      if (dot) dot.className = 'status-indicator online';
+      if (text) text.textContent = '🟢 Port Serial/COM Terhubung';
+      if (badge) badge.textContent = 'WEB SERIAL';
+      if (promptView) promptView.style.display = 'none';
+      if (infoView) infoView.style.display = 'block';
+      if (deviceName) deviceName.textContent = '🟢 Port Serial/COM Siap';
+    } else {
+      if (dot) dot.className = 'status-indicator offline';
+      if (text) text.textContent = 'Port Serial/COM belum dipilih';
+      if (badge) badge.textContent = 'SERIAL COM';
+      if (promptView) promptView.style.display = 'block';
+      if (infoView) infoView.style.display = 'none';
+    }
+
+    if (guideTitle) guideTitle.textContent = '⚡ Petunjuk Direct Web Serial (COM Port):';
     if (guideList) {
       guideList.innerHTML = `
-        <li><strong>1. Sambungkan Printer:</strong> Klik tombol biru <em>🔌 Sambungkan Printer Thermal USB</em> di atas.</li>
-        <li><strong>2. Pilih Printer Anda:</strong> Di jendela pop-up Chrome, pilih printer thermal kasir Anda lalu klik Hubungkan.</li>
-        <li><strong>3. Selesai:</strong> Browser mengingatnya selamanya. Saat klik tombol cetak, struk langsung keluar seketika!</li>
+        <li><strong>Sambungkan Port:</strong> Klik tombol <em>🔌 Pilih & Sambungkan Port COM / Serial</em> di atas.</li>
+        <li><strong>Pilih Port:</strong> Pilih port printer thermal Anda pada pop-up browser lalu klik Hubungkan.</li>
+        <li><strong>Cetak Instan:</strong> Struk akan langsung keluar tanpa pop-up dialog print.</li>
+      `;
+    }
+  } else if (currentMode === 'usb') {
+    // Mode WebUSB Direct
+    if (systemHint) systemHint.style.display = 'none';
+    if (directControls) directControls.style.display = 'block';
+    if (labelAutoCut) labelAutoCut.style.display = 'flex';
+    if (btnConnect) btnConnect.innerHTML = '⚡ Pilih & Sambungkan Printer USB Direct';
+
+    const isConnected = activeUsbDevice && activeUsbDevice.opened;
+    if (isConnected) {
+      if (dot) dot.className = 'status-indicator online';
+      if (text) text.textContent = `🟢 USB: ${activeUsbDevice.productName || 'Thermal Printer'}`;
+      if (badge) badge.textContent = 'WEB USB';
+      if (promptView) promptView.style.display = 'none';
+      if (infoView) infoView.style.display = 'block';
+      if (deviceName) deviceName.textContent = `🟢 ${activeUsbDevice.productName || 'Printer USB'}`;
+    } else {
+      if (dot) dot.className = 'status-indicator offline';
+      if (text) text.textContent = 'Printer USB belum terhubung';
+      if (badge) badge.textContent = 'RAW USB';
+      if (promptView) promptView.style.display = 'block';
+      if (infoView) infoView.style.display = 'none';
+    }
+
+    if (guideTitle) guideTitle.textContent = '⚡ Petunjuk Direct WebUSB:';
+    if (guideList) {
+      guideList.innerHTML = `
+        <li><strong>Catatan Windows:</strong> Di Windows, printer yang memakai driver bawaan pabrik sering dikunci oleh Windows spooler. Jika WebUSB tidak dapat dibuka, gunakan mode <em>Dialog Printer Windows</em>.</li>
+        <li><strong>Sambungkan:</strong> Klik tombol <em>⚡ Pilih & Sambungkan Printer USB Direct</em>.</li>
+      `;
+    }
+  } else if (currentMode === 'bluetooth') {
+    // Mode Web Bluetooth
+    if (systemHint) systemHint.style.display = 'none';
+    if (directControls) directControls.style.display = 'block';
+    if (labelAutoCut) labelAutoCut.style.display = 'flex';
+    if (btnConnect) btnConnect.innerHTML = '📶 Cari & Pasangkan Printer Bluetooth';
+
+    const isConnected = activeBtDevice && activeBtCharacteristic;
+    if (isConnected) {
+      if (dot) dot.className = 'status-indicator online';
+      if (text) text.textContent = `🟢 BT: ${activeBtDevice.name || 'Printer Kasir'}`;
+      if (badge) badge.textContent = 'BLUETOOTH';
+      if (promptView) promptView.style.display = 'none';
+      if (infoView) infoView.style.display = 'block';
+      if (deviceName) deviceName.textContent = `🟢 ${activeBtDevice.name || 'Bluetooth Printer'}`;
+    } else {
+      if (dot) dot.className = 'status-indicator offline';
+      if (text) text.textContent = 'Printer Bluetooth belum terhubung';
+      if (badge) badge.textContent = 'BLUETOOTH';
+      if (promptView) promptView.style.display = 'block';
+      if (infoView) infoView.style.display = 'none';
+    }
+
+    if (guideTitle) guideTitle.textContent = '📶 Petunjuk Direct Web Bluetooth:';
+    if (guideList) {
+      guideList.innerHTML = `
+        <li><strong>Nyalakan Printer:</strong> Pastikan printer thermal portable Bluetooth dalam kondisi menyala.</li>
+        <li><strong>Pasangkan:</strong> Klik tombol <em>📶 Cari & Pasangkan Printer Bluetooth</em>, lalu pilih nama printer Anda (misal RPP02N, ZJiang, Bluetooth POS).</li>
+        <li><strong>Cetak Nirkabel:</strong> Struk dicetak secara langsung via Bluetooth tanpa kabel.</li>
       `;
     }
   }
@@ -587,26 +779,26 @@ function buildEscPosBytes(text, doCut = true) {
     textBytes.push(code < 256 ? code : 63); // 63 adalah '?'
   }
 
-  // 5 baris kosong sebelum pemotong kertas
-  const feedBytes = [0x0d, 0x0a, 0x0d, 0x0a, 0x0d, 0x0a, 0x0d, 0x0a, 0x0d, 0x0a];
+  // Baris kosong sebelum pemotong kertas
+  const feedBytes = [0x0d, 0x0a, 0x0d, 0x0a, 0x0d, 0x0a, 0x0d, 0x0a];
 
-  // ESC/POS GS V 66 0 (Potong kertas)
+  // ESC/POS GS V 66 0 (Potong kertas jika didukung)
   const cutBytes = doCut ? [0x1d, 0x56, 0x42, 0x00] : [];
 
   const combined = new Uint8Array(initBytes.concat(textBytes, feedBytes, cutBytes));
   return combined;
 }
 
-// Kirim data langsung ke hardware printer
+// Kirim data langsung ke hardware printer (Serial / USB)
 async function sendRawBytesToPrinter(bytes) {
-  if (activeDeviceType === 'serial' && activeSerialPort && activeSerialPort.writable) {
+  if (state.printMode === 'serial' && activeSerialPort && activeSerialPort.writable) {
     const writer = activeSerialPort.writable.getWriter();
     await writer.write(bytes);
     writer.releaseLock();
     return true;
   }
 
-  if (activeDeviceType === 'usb' && activeUsbDevice && activeUsbDevice.opened) {
+  if (state.printMode === 'usb' && activeUsbDevice && activeUsbDevice.opened) {
     await activeUsbDevice.transferOut(activeUsbEndpoint, bytes);
     return true;
   }
@@ -614,179 +806,221 @@ async function sendRawBytesToPrinter(bytes) {
   return false;
 }
 
-// Trigger Print Utama
-async function triggerThermalPrint() {
-  const receiptText = generateMonospaceReceipt();
-
-  // 1. Jika terhubung via Web Serial / WebUSB
-  if (activeDeviceType === 'serial' || activeDeviceType === 'usb') {
-    try {
-      showToast('⚡ Mencetak langsung ke printer USB...');
-      const bytes = buildEscPosBytes(receiptText, state.autoCut !== false);
-      const ok = await sendRawBytesToPrinter(bytes);
-      if (ok) {
-        showToast('✅ Struk berhasil dicetak ke Printer USB!');
-        return;
-      }
-    } catch (e) {
-      console.error('Direct USB print failed', e);
-      showToast('⚠️ Gagal mengirim ke USB: ' + e.message);
+// Kirim data ke printer via Bluetooth GATT characteristic
+async function sendBytesToBluetooth(bytes) {
+  if (!activeBtCharacteristic) return false;
+  const chunkSize = 100; // Paket aman BLE MTU untuk thermal printer
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.slice(i, i + chunkSize);
+    if (activeBtCharacteristic.writeValueWithoutResponse) {
+      await activeBtCharacteristic.writeValueWithoutResponse(chunk);
+    } else {
+      await activeBtCharacteristic.writeValue(chunk);
     }
+    await new Promise(r => setTimeout(r, 25));
   }
-
-  // 2. Jika terhubung via Local Bridge (Port 9123)
-  if (activeDeviceType === 'bridge') {
-    try {
-      const res = await fetch('http://127.0.0.1:9123/print', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          printer: state.selectedPrinter || 'CUTTER',
-          text: receiptText,
-          cut: state.autoCut !== false
-        })
-      });
-      const data = await res.json();
-      if (data.success) {
-        showToast('✅ Struk berhasil dicetak ke printer!');
-        return;
-      }
-    } catch (e) {}
-  }
-
-  // 3. Fallback jika belum tersambung: tawarkan sambungkan atau buka dialog browser
-  if (confirm('Printer USB belum tersambung langsung.\n\nKlik "OK" untuk menyambungkan printer USB sekarang (1-klik instan),\natau klik "Batal" untuk mencetak lewat dialog browser biasa.')) {
-    await requestUserConnectPrinter();
-    if (activeDeviceType === 'serial' || activeDeviceType === 'usb') {
-      triggerThermalPrint();
-    }
-  } else {
-    printViaBrowserDialog();
-  }
+  return true;
 }
 
-// Kirim Tes Cetak
+// Trigger Print Utama (Menyesuaikan dengan Opsi Printer yang Dipilih Pengguna)
+async function triggerThermalPrint() {
+  const currentMode = state.printMode || 'system';
+
+  // 1. Mode Dialog Printer Windows (Metode Utama & Paling Stabil)
+  if (currentMode === 'system') {
+    printViaBrowserDialog();
+    return;
+  }
+
+  const receiptText = generateMonospaceReceipt();
+
+  // 2. Mode Web Serial
+  if (currentMode === 'serial') {
+    if (activeSerialPort && activeSerialPort.writable) {
+      try {
+        showToast('⚡ Mencetak via Web Serial (Port COM)...');
+        const bytes = buildEscPosBytes(receiptText, state.autoCut !== false);
+        await sendRawBytesToPrinter(bytes);
+        showToast('✅ Struk berhasil dicetak ke Printer Serial!');
+        return;
+      } catch (e) {
+        console.error('Serial print error:', e);
+        showToast('⚠️ Gagal Serial: ' + e.message);
+      }
+    } else {
+      if (confirm('Port Serial/COM belum terhubung.\n\nKlik "OK" untuk memilih port COM sekarang,\natau klik "Batal" untuk mencetak lewat Dialog Printer Windows.')) {
+        await requestConnectSerial();
+        if (activeSerialPort && activeSerialPort.writable) {
+          triggerThermalPrint();
+        }
+      } else {
+        printViaBrowserDialog();
+      }
+      return;
+    }
+  }
+
+  // 3. Mode WebUSB Direct
+  if (currentMode === 'usb') {
+    if (activeUsbDevice && activeUsbDevice.opened) {
+      try {
+        showToast('⚡ Mencetak via WebUSB Direct...');
+        const bytes = buildEscPosBytes(receiptText, state.autoCut !== false);
+        await sendRawBytesToPrinter(bytes);
+        showToast('✅ Struk berhasil dicetak ke Printer USB!');
+        return;
+      } catch (e) {
+        console.error('USB print error:', e);
+        showToast('⚠️ Gagal USB: ' + e.message);
+      }
+    } else {
+      if (confirm('Printer USB belum terhubung via WebUSB.\n\nKlik "OK" untuk memilih perangkat USB sekarang,\natau klik "Batal" untuk mencetak lewat Dialog Printer Windows.')) {
+        await requestConnectUsb();
+        if (activeUsbDevice && activeUsbDevice.opened) {
+          triggerThermalPrint();
+        }
+      } else {
+        printViaBrowserDialog();
+      }
+      return;
+    }
+  }
+
+  // 4. Mode Web Bluetooth
+  if (currentMode === 'bluetooth') {
+    if (activeBtCharacteristic) {
+      try {
+        showToast('📶 Mencetak via Bluetooth...');
+        const bytes = buildEscPosBytes(receiptText, state.autoCut !== false);
+        await sendBytesToBluetooth(bytes);
+        showToast('✅ Struk berhasil dicetak ke Printer Bluetooth!');
+        return;
+      } catch (e) {
+        console.error('Bluetooth print error:', e);
+        showToast('⚠️ Gagal Bluetooth: ' + e.message);
+      }
+    } else {
+      if (confirm('Printer Bluetooth belum terhubung.\n\nKlik "OK" untuk mencari & memasangkan printer Bluetooth sekarang,\natau klik "Batal" untuk mencetak lewat Dialog Printer Windows.')) {
+        await requestConnectBluetooth();
+        if (activeBtCharacteristic) {
+          triggerThermalPrint();
+        }
+      } else {
+        printViaBrowserDialog();
+      }
+      return;
+    }
+  }
+
+  // 5. Fallback ke Dialog Sistem
+  printViaBrowserDialog();
+}
+
+// Kirim Tes Cetak ke Printer
 async function sendTestPrint() {
   const now = new Date();
   const pad = (n) => String(n).padStart(2, '0');
   const timeStr = `${pad(now.getDate())}-${pad(now.getMonth()+1)}-${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 
+  const currentMode = state.printMode || 'system';
   const testText = [
     '====================================',
     '       TES PRINTER THERMAL',
     '        MANGROVE PRINTING',
     '====================================',
-    ` Mode    : ${activeDeviceType === 'serial' ? 'Web Serial API' : (activeDeviceType === 'usb' ? 'WebUSB Direct' : 'Local Spooler')}`,
+    ` Mode    : ${getModeLabel(currentMode)}`,
     ` Waktu   : ${timeStr}`,
-    ' Status  : SANGAT SIAP DIGUNAKAN!',
+    ` Ukuran  : ${state.paperSize || '58mm'}`,
+    ' Status  : PRINTER SIAP DIGUNAKAN!',
     '------------------------------------',
-    '   -- 1-KLIK MURNI DARI BROWSER --',
+    '       -- TERIMA KASIH --',
     '===================================='
   ].join('\r\n');
 
-  if (activeDeviceType === 'serial' || activeDeviceType === 'usb') {
-    try {
-      showToast('⚡ Mengirim tes cetak ke printer USB...');
-      const bytes = buildEscPosBytes(testText, state.autoCut !== false);
-      await sendRawBytesToPrinter(bytes);
-      showToast('✅ Tes cetak berhasil keluar dari printer!');
-    } catch (e) {
-      showToast('❌ Gagal: ' + e.message);
-    }
-  } else if (activeDeviceType === 'bridge') {
-    try {
-      await fetch('http://127.0.0.1:9123/print', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          printer: state.selectedPrinter || 'CUTTER',
-          text: testText,
-          cut: state.autoCut !== false
-        })
-      });
-      showToast('✅ Tes cetak berhasil terkirim!');
-    } catch (e) {
-      showToast('❌ Gagal mengirim tes.');
-    }
-  } else {
-    showToast('Silakan klik tombol "🔌 Sambungkan Printer Thermal USB" terlebih dahulu.');
+  if (currentMode === 'system') {
+    showToast('Membuka jendela cetak untuk tes printer...');
+    printViaBrowserDialog(testText);
+    return;
   }
+
+  if (currentMode === 'serial') {
+    if (activeSerialPort && activeSerialPort.writable) {
+      try {
+        showToast('⚡ Mengirim tes cetak ke port Serial...');
+        const bytes = buildEscPosBytes(testText, state.autoCut !== false);
+        await sendRawBytesToPrinter(bytes);
+        showToast('✅ Tes cetak Serial berhasil!');
+      } catch (e) {
+        showToast('❌ Gagal: ' + e.message);
+      }
+    } else {
+      showToast('⚠️ Hubungkan port Serial terlebih dahulu.');
+      await requestConnectSerial();
+    }
+    return;
+  }
+
+  if (currentMode === 'usb') {
+    if (activeUsbDevice && activeUsbDevice.opened) {
+      try {
+        showToast('⚡ Mengirim tes cetak ke USB...');
+        const bytes = buildEscPosBytes(testText, state.autoCut !== false);
+        await sendRawBytesToPrinter(bytes);
+        showToast('✅ Tes cetak USB berhasil!');
+      } catch (e) {
+        showToast('❌ Gagal: ' + e.message);
+      }
+    } else {
+      showToast('⚠️ Hubungkan printer USB terlebih dahulu.');
+      await requestConnectUsb();
+    }
+    return;
+  }
+
+  if (currentMode === 'bluetooth') {
+    if (activeBtCharacteristic) {
+      try {
+        showToast('📶 Mengirim tes cetak ke Bluetooth...');
+        const bytes = buildEscPosBytes(testText, state.autoCut !== false);
+        await sendBytesToBluetooth(bytes);
+        showToast('✅ Tes cetak Bluetooth berhasil!');
+      } catch (e) {
+        showToast('❌ Gagal: ' + e.message);
+      }
+    } else {
+      showToast('⚠️ Hubungkan printer Bluetooth terlebih dahulu.');
+      await requestConnectBluetooth();
+    }
+    return;
+  }
+
+  printViaBrowserDialog(testText);
 }
 
-// Fungsi Cetak via Dialog Browser (Fallback)
-function printViaBrowserDialog() {
-  const rawReceipt = generateMonospaceReceipt();
-  const fontPt = state.printFontSize || (state.paperSize === '80mm' ? 9.5 : 7);
-  const paperWidth = state.paperSize === '80mm' ? '72mm' : '48mm';
-  const pageSize = state.paperSize === '80mm' ? '80mm auto' : '58mm auto';
+// Fungsi Cetak via Dialog Browser / Windows (Bebas Iframe Rusak & Selalu Stabil)
+function printViaBrowserDialog(customText = null) {
+  const receiptText = customText || generateMonospaceReceipt();
 
-  // Siapkan juga print-content bawaan untuk fallback Ctrl+P
+  // 1. Isi container cetak #print-content di DOM utama
   const printContent = document.getElementById('print-content');
   if (printContent) {
-    printContent.textContent = rawReceipt;
+    printContent.textContent = receiptText;
   }
 
-  // Gunakan isolated iframe untuk hasil print 100% presisi bebas gangguan margin/header browser
-  let iframe = document.getElementById('print-thermal-iframe');
-  if (!iframe) {
-    iframe = document.createElement('iframe');
-    iframe.id = 'print-thermal-iframe';
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = '0';
-    iframe.style.visibility = 'hidden';
-    document.body.appendChild(iframe);
+  // 2. Pastikan kelas ukuran kertas terpasang pada body
+  if (state.paperSize === '80mm') {
+    document.body.classList.remove('print-58mm');
+    document.body.classList.add('print-80mm');
+  } else {
+    document.body.classList.remove('print-80mm');
+    document.body.classList.add('print-58mm');
   }
 
-  const doc = iframe.contentWindow.document;
-  doc.open();
-  doc.write(`<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Struk - ${escapeHtml(state.store.name)}</title>
-  <style>
-    @page {
-      size: ${pageSize};
-      margin: 5mm !important;
-    }
-    html, body {
-      margin: 0 !important;
-      padding: 0 !important;
-      background: #ffffff !important;
-      color: #000000 !important;
-      width: ${paperWidth} !important;
-    }
-    pre {
-      font-family: 'Consolas', 'Lucida Console', 'Courier New', monospace !important;
-      font-size: ${fontPt}pt !important;
-      line-height: 1.25 !important;
-      letter-spacing: -0.1px !important;
-      white-space: pre !important;
-      word-break: normal !important;
-      overflow-wrap: normal !important;
-      margin: 0 !important;
-      padding: 1mm 0 3mm 0 !important;
-      width: ${paperWidth} !important;
-      max-width: ${paperWidth} !important;
-      box-sizing: border-box !important;
-      color: #000000 !important;
-    }
-  </style>
-</head>
-<body>
-  <pre>${escapeHtml(rawReceipt)}</pre>
-</body>
-</html>`);
-  doc.close();
+  // 3. Kalibrasi ukuran font cetak
+  applyFontCalibration();
 
-  setTimeout(() => {
-    iframe.contentWindow.focus();
-    iframe.contentWindow.print();
-  }, 250);
+  // 4. Langsung panggil window.print() (standar resmi peramban web)
+  window.print();
 }
 
 // Tambah Item Baru
@@ -1182,7 +1416,8 @@ function saveToStorage() {
       paperSize: state.paperSize,
       printFontSize: state.printFontSize,
       selectedPrinter: state.selectedPrinter,
-      autoCut: state.autoCut
+      autoCut: state.autoCut,
+      printMode: state.printMode
     };
     localStorage.setItem('mangrove_pos_config', JSON.stringify(config));
   } catch (e) {
@@ -1206,6 +1441,7 @@ function loadFromStorage() {
       if (parsed.printFontSize) state.printFontSize = parsed.printFontSize;
       if (parsed.selectedPrinter) state.selectedPrinter = parsed.selectedPrinter;
       if (parsed.autoCut !== undefined) state.autoCut = parsed.autoCut;
+      if (parsed.printMode) state.printMode = parsed.printMode;
     }
     syncStateToForm();
   } catch (e) {

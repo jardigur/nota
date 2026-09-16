@@ -14,7 +14,7 @@
     <!-- Top Navigation Header -->
     <header class="app-header">
       <div class="brand">
-        <div class="brand-icon">🧾</div>
+        <div class="brand-icon">ðŸ§¾</div>
         <div>
           <h1>PRINT POS</h1>
           <p class="subtitle">Sistem Kasir & Generator Struk Thermal Percetakan</p>
@@ -22,13 +22,13 @@
       </div>
       <div class="header-actions">
         <button type="button" class="btn btn-outline" id="btn-reset" title="Kosongkan form untuk transaksi baru">
-          🔄 Transaksi Baru
+          ðŸ”„ Transaksi Baru
         </button>
         <button type="button" class="btn btn-secondary" id="btn-copy-md" title="Salin format Markdown struk">
-          📋 Salin Markdown
+          ðŸ“‹ Salin Markdown
         </button>
         <button type="button" class="btn btn-primary" id="btn-print" title="Cetak struk ke printer thermal">
-          🖨️ Cetak Struk
+          ðŸ–¨ï¸ Cetak Struk
         </button>
       </div>
     </header>
@@ -42,9 +42,9 @@
         <div class="card">
           <div class="card-header" onclick="toggleCard(this)">
             <div class="card-title">
-              <span class="icon">🏢</span> Informasi Toko & Petugas
+              <span class="icon">ðŸ¢</span> Informasi Toko & Petugas
             </div>
-            <span class="card-toggle">▾</span>
+            <span class="card-toggle">â–¾</span>
           </div>
           <div class="card-body">
             <div class="form-grid-3">
@@ -78,9 +78,9 @@
         <div class="card">
           <div class="card-header" onclick="toggleCard(this)">
             <div class="card-title">
-              <span class="icon">👤</span> Data Pelanggan & Order
+              <span class="icon">ðŸ‘¤</span> Data Pelanggan & Order
             </div>
-            <span class="card-toggle">▾</span>
+            <span class="card-toggle">â–¾</span>
           </div>
           <div class="card-body">
             <div class="form-grid-2">
@@ -98,14 +98,14 @@
                 <label for="order-no">No. Order</label>
                 <div class="input-with-button">
                   <input type="text" id="order-no" value="" placeholder="No. Order">
-                  <button type="button" class="btn-sm" id="btn-gen-order" title="Buat No. Order otomatis">🎲</button>
+                  <button type="button" class="btn-sm" id="btn-gen-order" title="Buat No. Order otomatis">ðŸŽ²</button>
                 </div>
               </div>
               <div class="form-group">
                 <label for="order-datetime">Tanggal / Waktu</label>
                 <div class="input-with-button">
                   <input type="text" id="order-datetime" value="" placeholder="Tanggal / Waktu">
-                  <button type="button" class="btn-sm" id="btn-now" title="Gunakan waktu sekarang">⏱️</button>
+                  <button type="button" class="btn-sm" id="btn-now" title="Gunakan waktu sekarang">â±ï¸</button>
                 </div>
               </div>
               <div class="form-group">
@@ -120,7 +120,7 @@
         <div class="card">
           <div class="card-header">
             <div class="card-title">
-              <span class="icon">📦</span> Daftar Item / Barang
+              <span class="icon">ðŸ“¦</span> Daftar Item / Barang
             </div>
             <button type="button" class="btn btn-sm btn-primary" id="btn-add-item">
               + Tambah Barang
@@ -153,9 +153,9 @@
         <div class="card">
           <div class="card-header" onclick="toggleCard(this)">
             <div class="card-title">
-              <span class="icon">💰</span> Rincian Pembayaran
+              <span class="icon">ðŸ’°</span> Rincian Pembayaran
             </div>
-            <span class="card-toggle">▾</span>
+            <span class="card-toggle">â–¾</span>
           </div>
           <div class="card-body">
             <div class="payment-grid">
@@ -202,16 +202,17 @@
         <div class="card">
           <div class="card-header" onclick="toggleCard(this)">
             <div class="card-title">
-              <span class="icon">📝</span> Catatan & Footer Struk
+              <span class="icon">ðŸ“</span> Catatan & Footer Struk
             </div>
-            <span class="card-toggle">▾</span>
+            <span class="card-toggle">â–¾</span>
           </div>
           <div class="card-body">
             <div class="form-group">
               <label for="receipt-notes">Catatan Perhatian (Pemisah baris)</label>
               <textarea id="receipt-notes" rows="4">1.Cek kembali file anda dan
 pastikan tidak ada yang salah. Kesalahan file setelah transaksi bukan menjadi tanggung jawab kami
-2.Barang yang tidak diambil lebih dari 7 hari apabila hilang/rusak bukan menjadi tanggung jawab kami</textarea>
+2.Barang yang tidak diambil lebih dari
+7 hari apabila hilang/rusak bukan menjadi tanggung jawab kami</textarea>
             </div>
             <div class="form-grid-2" style="margin-top: 10px;">
               <div class="form-group">
@@ -244,7 +245,7 @@ pastikan tidak ada yang salah. Kesalahan file setelah transaksi bukan menjadi ta
           <!-- Toolbar Kalibrasi Font Cetak agar Pas di Printer Thermal -->
           <div class="print-calibration-bar">
             <div class="calib-label">
-              <span>📐 Font Cetak:</span>
+              <span>ðŸ“ Font Cetak:</span>
               <strong id="print-font-label">7 pt (Pas 58mm)</strong>
             </div>
             <div class="calib-controls">
@@ -266,16 +267,16 @@ pastikan tidak ada yang salah. Kesalahan file setelah transaksi bukan menjadi ta
 
           <div class="preview-actions">
             <button type="button" class="btn btn-primary btn-block btn-lg" id="btn-print-2">
-              🖨️ Cetak ke Printer Thermal
+              ðŸ–¨ï¸ Cetak ke Printer Thermal
             </button>
             
             <div class="print-guide-card">
               <div class="print-guide-title">
-                <span>⚙️ Pengaturan Wajib di Dialog Cetak Browser:</span>
+                <span>âš™ï¸ Pengaturan Wajib di Dialog Cetak Browser:</span>
               </div>
               <ul class="print-guide-list">
                 <li><strong>Tujuan (Destination):</strong> Pilih Printer Thermal kasir Anda</li>
-                <li><strong>Margin (Margins):</strong> Pilih <u>None</u> / <u>Tidak ada</u> <em>(Jangan Default!)</em></li>
+                <li><strong>Margin (Margins):</strong> Pilih <u>None</u> / <u>Tidak ada</u> <em>(Margin 5mm sudah diatur otomatis oleh aplikasi)</em></li>
                 <li><strong>Header & Footer:</strong> <u>Hapus centang</u> (Nonaktifkan)</li>
                 <li><strong>Skala (Scale):</strong> <u>100%</u> / Default</li>
               </ul>

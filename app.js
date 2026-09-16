@@ -335,7 +335,7 @@ function printThermalReceipt() {
   <style>
     @page {
       size: ${pageSize};
-      margin: 0mm !important;
+      margin: 5mm !important;
     }
     html, body {
       margin: 0 !important;

@@ -242,23 +242,31 @@ pastikan tidak ada yang salah. Kesalahan file setelah transaksi bukan menjadi ta
             </div>
           </div>
 
-          <!-- Panel Kontrol Printer Thermal 1-Klik -->
+          <!-- Panel Kontrol Printer Thermal (1-Klik Murni Web USB/Serial & Bridge) -->
           <div class="direct-print-card" id="direct-print-card">
             <div class="direct-print-header">
               <div class="direct-print-status">
-                <span class="status-indicator online" id="print-status-dot"></span>
-                <span id="print-status-text">Memeriksa koneksi printer...</span>
+                <span class="status-indicator offline" id="print-status-dot"></span>
+                <span id="print-status-text">Printer USB belum tersambung</span>
               </div>
-              <span class="direct-print-badge" id="print-mode-badge">1-KLIK RAW</span>
+              <span class="direct-print-badge" id="print-mode-badge">WEB USB / SERIAL</span>
             </div>
             <div class="direct-print-body">
-              <div class="print-field-row">
-                <label for="printer-select">Target Printer:</label>
-                <select id="printer-select" class="printer-dropdown">
-                  <option value="CUTTER">CUTTER (Thermal POS USB)</option>
-                </select>
-                <button type="button" class="btn-calib" id="btn-refresh-printers" title="Segarkan daftar printer">🔄</button>
+              <!-- Tampilan saat belum connect USB -->
+              <div id="printer-connect-prompt">
+                <button type="button" class="btn btn-block btn-connect-usb" id="btn-connect-usb">
+                  🔌 Sambungkan Printer Thermal USB
+                </button>
               </div>
+
+              <!-- Tampilan saat sudah connect USB -->
+              <div id="printer-connected-info" style="display: none;">
+                <div class="print-field-row">
+                  <span class="device-name-badge" id="connected-device-name">Printer USB Terhubung</span>
+                  <button type="button" class="btn-calib btn-disconnect" id="btn-disconnect-usb" title="Putuskan sambungan printer">Putuskan</button>
+                </div>
+              </div>
+
               <div class="print-options-row">
                 <label class="checkbox-inline">
                   <input type="checkbox" id="check-auto-cut" checked> Potong Kertas Otomatis
@@ -301,12 +309,12 @@ pastikan tidak ada yang salah. Kesalahan file setelah transaksi bukan menjadi ta
             
             <div class="print-guide-card" id="print-guide-box">
               <div class="print-guide-title">
-                <span id="print-guide-title-text">💡 Info Cetak Instan 1-Klik:</span>
+                <span id="print-guide-title-text">💡 Cara 1-Klik Cetak Murni (Tanpa Script .bat):</span>
               </div>
               <ul class="print-guide-list" id="print-guide-list">
-                <li><strong>1-Klik Instan:</strong> Struk langsung keluar dari printer <strong>CUTTER</strong> tanpa jendela konfirmasi browser.</li>
-                <li><strong>Auto Cutter:</strong> Kertas otomatis terpotong rapi setelah selesai dicetak.</li>
-                <li><strong>Format Asli:</strong> Ukuran font & perataan teks 100% meniru struk aplikasi desktop Mangrove V3-0.</li>
+                <li><strong>1. Sambungkan Printer:</strong> Klik tombol biru <em>🔌 Sambungkan Printer Thermal USB</em> di atas.</li>
+                <li><strong>2. Pilih Printer Anda:</strong> Di jendela pop-up Chrome, pilih printer thermal kasir Anda lalu klik Hubungkan.</li>
+                <li><strong>3. Selesai:</strong> Browser mengingatnya selamanya. Saat klik tombol cetak, struk langsung keluar seketika!</li>
               </ul>
             </div>
           </div>

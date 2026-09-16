@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aplikasi Kasir & Cetak Struk Thermal</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container no-print">
+    <!-- Top Navigation Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-icon">🧾</div>
+        <div>
+          <h1>PRINT POS</h1>
+          <p class="subtitle">Sistem Kasir & Generator Struk Thermal Percetakan</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button type="button" class="btn btn-outline" id="btn-reset" title="Kosongkan form untuk transaksi baru">
+          🔄 Transaksi Baru
+        </button>
+        <button type="button" class="btn btn-secondary" id="btn-copy-md" title="Salin format Markdown struk">
+          📋 Salin Markdown
+        </button>
+        <button type="button" class="btn btn-primary" id="btn-print" title="Cetak struk ke printer thermal">
+          🖨️ Cetak Struk
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace (2 Panels) -->
+    <main class="main-content">
+      <!-- LEFT PANEL: INPUT FORMS -->
+      <section class="form-panel">
+        
+        <!-- Card 1: Data Toko & Petugas -->
+        <div class="card">
+          <div class="card-header" onclick="toggleCard(this)">
+            <div class="card-title">
+              <span class="icon">🏢</span> Informasi Toko & Petugas
+            </div>
+            <span class="card-toggle">▾</span>
+          </div>
+          <div class="card-body">
+            <div class="form-grid-3">
+              <div class="form-group">
+                <label for="store-name">Nama Toko</label>
+                <input type="text" id="store-name" value="MANGROVE GEJAYAN" autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label for="store-address">Alamat</label>
+                <input type="text" id="store-address" value="JALAN BOUGENVILE CTX 2" autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label for="store-phone">Kota & Telepon</label>
+                <input type="text" id="store-phone" value="YOGYAKARTA (0274)6411510" autocomplete="off">
+              </div>
+            </div>
+            <div class="form-grid-2" style="margin-top: 10px;">
+              <div class="form-group">
+                <label for="operator-name">Operator</label>
+                <input type="text" id="operator-name" value="" placeholder="Nama Operator">
+              </div>
+              <div class="form-group">
+                <label for="cashier-name">Kasir</label>
+                <input type="text" id="cashier-name" value="" placeholder="Nama Kasir">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: Data Pelanggan & Pesanan -->
+        <div class="card">
+          <div class="card-header" onclick="toggleCard(this)">
+            <div class="card-title">
+              <span class="icon">👤</span> Data Pelanggan & Order
+            </div>
+            <span class="card-toggle">▾</span>
+          </div>
+          <div class="card-body">
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label for="customer-name">Nama Customer</label>
+                <input type="text" id="customer-name" value="" placeholder="Nama pelanggan">
+              </div>
+              <div class="form-group">
+                <label for="customer-phone">Telephone</label>
+                <input type="text" id="customer-phone" value="" placeholder="Nomor kontak">
+              </div>
+            </div>
+            <div class="form-grid-3" style="margin-top: 10px;">
+              <div class="form-group">
+                <label for="order-no">No. Order</label>
+                <div class="input-with-button">
+                  <input type="text" id="order-no" value="" placeholder="No. Order">
+                  <button type="button" class="btn-sm" id="btn-gen-order" title="Buat No. Order otomatis">🎲</button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="order-datetime">Tanggal / Waktu</label>
+                <div class="input-with-button">
+                  <input type="text" id="order-datetime" value="" placeholder="Tanggal / Waktu">
+                  <button type="button" class="btn-sm" id="btn-now" title="Gunakan waktu sekarang">⏱️</button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="order-deadline">Deadline</label>
+                <input type="text" id="order-deadline" value="" placeholder="cth: 20:01 atau 16-09-2026">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 3: Input Barang Manual -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon">📦</span> Daftar Item / Barang
+            </div>
+            <button type="button" class="btn btn-sm btn-primary" id="btn-add-item">
+              + Tambah Barang
+            </button>
+          </div>
+          <div class="card-body">
+            <div class="items-table-wrapper">
+              <table class="items-table">
+                <thead>
+                  <tr>
+                    <th style="width: 35px;">No</th>
+                    <th style="width: 130px;">Produk / Kategori</th>
+                    <th>Bahan / Spesifikasi</th>
+                    <th style="width: 85px;">Ukuran</th>
+                    <th style="width: 65px;">Jumlah</th>
+                    <th style="width: 110px;">Harga (Rp)</th>
+                    <th style="width: 110px;">Total (Rp)</th>
+                    <th style="width: 45px;">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="items-tbody">
+                  <!-- Generated dynamically by app.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 4: Pembayaran, Diskon & Biaya Tambahan -->
+        <div class="card">
+          <div class="card-header" onclick="toggleCard(this)">
+            <div class="card-title">
+              <span class="icon">💰</span> Rincian Pembayaran
+            </div>
+            <span class="card-toggle">▾</span>
+          </div>
+          <div class="card-body">
+            <div class="payment-grid">
+              <div class="form-group">
+                <label for="cost-finishing">By Finishing (Rp)</label>
+                <input type="number" id="cost-finishing" value="0" min="0" step="500">
+              </div>
+              <div class="form-group">
+                <label for="cost-discount">Discount (Rp)</label>
+                <input type="number" id="cost-discount" value="0" min="0" step="500">
+              </div>
+              <div class="form-group">
+                <label for="amount-paid">Jumlah Bayar (Rp)</label>
+                <input type="number" id="amount-paid" value="0" min="0" step="500">
+              </div>
+              <div class="form-group">
+                <label for="payment-status">Status Pembayaran</label>
+                <select id="payment-status">
+                  <option value="L U N A S" selected>L U N A S</option>
+                  <option value="B E L U M   L U N A S">BELUM LUNAS</option>
+                  <option value="D P   ( U A N G   M U K A )">DP (UANG MUKA)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="calculation-summary">
+              <div class="summary-row">
+                <span>Sub Total:</span>
+                <span class="summary-val" id="sum-subtotal">Rp. 0</span>
+              </div>
+              <div class="summary-row">
+                <span>Grand Total:</span>
+                <span class="summary-val highlight" id="sum-grandtotal">Rp. 0</span>
+              </div>
+              <div class="summary-row">
+                <span>Kembalian:</span>
+                <span class="summary-val" id="sum-change">Rp. 0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 5: Catatan Perhatian & Footer -->
+        <div class="card">
+          <div class="card-header" onclick="toggleCard(this)">
+            <div class="card-title">
+              <span class="icon">📝</span> Catatan & Footer Struk
+            </div>
+            <span class="card-toggle">▾</span>
+          </div>
+          <div class="card-body">
+            <div class="form-group">
+              <label for="receipt-notes">Catatan Perhatian (Pemisah baris)</label>
+              <textarea id="receipt-notes" rows="4">1.Cek kembali file anda dan
+pastikan tidak ada yang salah. Kesalahan file setelah transaksi bukan menjadi tanggung jawab kami
+2.Barang yang tidak diambil lebih dari
+7 hari apabila hilang/rusak bukan menjadi tanggung jawab kami</textarea>
+            </div>
+            <div class="form-grid-2" style="margin-top: 10px;">
+              <div class="form-group">
+                <label for="receipt-slogan">Slogan / Ucapan</label>
+                <input type="text" id="receipt-slogan" value="-- TERIMA KASIH --">
+              </div>
+              <div class="form-group">
+                <label for="receipt-website">Website Toko</label>
+                <input type="text" id="receipt-website" value="www.mangroveprinting.com">
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- RIGHT PANEL: THERMAL RECEIPT LIVE PREVIEW -->
+      <section class="preview-panel">
+        <div class="preview-sticky">
+          <div class="preview-toolbar">
+            <div class="preview-badge">
+              <span class="live-dot"></span> LIVE PREVIEW STRUK
+            </div>
+            <div class="paper-width-selector">
+              <label><input type="radio" name="paper-size" value="58mm" checked> 58mm</label>
+              <label><input type="radio" name="paper-size" value="80mm"> 80mm</label>
+            </div>
+          </div>
+
+          <!-- Toolbar Kalibrasi Font Cetak agar Pas di Printer Thermal -->
+          <div class="print-calibration-bar">
+            <div class="calib-label">
+              <span>📐 Font Cetak:</span>
+              <strong id="print-font-label">7 pt (Pas 58mm)</strong>
+            </div>
+            <div class="calib-controls">
+              <button type="button" class="btn-calib" id="btn-font-dec" title="Kecilkan huruf cetak agar muat di kertas">A-</button>
+              <button type="button" class="btn-calib" id="btn-font-reset" title="Reset ukuran bawaan">Reset</button>
+              <button type="button" class="btn-calib" id="btn-font-inc" title="Besarkan huruf cetak">A+</button>
+            </div>
+          </div>
+
+          <!-- The visual thermal receipt paper -->
+          <div class="thermal-paper-container" id="thermal-container">
+            <div class="paper-tear-edge top"></div>
+            <div class="thermal-receipt" id="thermal-receipt">
+              <!-- Raw monospace receipt text rendered exactly like markdown -->
+              <pre id="receipt-content"></pre>
+            </div>
+            <div class="paper-tear-edge bottom"></div>
+          </div>
+
+          <div class="preview-actions">
+            <button type="button" class="btn btn-primary btn-block btn-lg" id="btn-print-2">
+              🖨️ Cetak ke Printer Thermal
+            </button>
+            
+            <div class="print-guide-card">
+              <div class="print-guide-title">
+                <span>⚙️ Pengaturan Wajib di Dialog Cetak Browser:</span>
+              </div>
+              <ul class="print-guide-list">
+                <li><strong>Tujuan (Destination):</strong> Pilih Printer Thermal kasir Anda</li>
+                <li><strong>Margin (Margins):</strong> Pilih <u>None</u> / <u>Tidak ada</u> <em>(Jangan Default!)</em></li>
+                <li><strong>Header & Footer:</strong> <u>Hapus centang</u> (Nonaktifkan)</li>
+                <li><strong>Skala (Scale):</strong> <u>100%</u> / Default</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- PRINT ONLY CONTAINER: Hanya ini yang akan dicetak oleh browser -->
+  <div id="print-area" class="print-only">
+    <pre id="print-content"></pre>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast">Pesan notifikasi</div>
+
+  <script src="app.js"></script>
+</body>
+</html>
+

@@ -607,7 +607,7 @@ body {
 @media print {
   @page {
     size: auto;
-    margin: 0mm !important; /* Hilangkan margin putih default browser */
+    margin: 5mm !important; /* Margin print 5mm */
   }
 
   html, body {
